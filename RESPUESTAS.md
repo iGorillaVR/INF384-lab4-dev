@@ -3,8 +3,6 @@ Alumno: 20210906
 Presupuesto: 8 min  Métrica DORA: time to restore
 
 ## Parte 1 · Diagnóstico
-> Nota de trazabilidad: las correcciones 1, 2 y una parte de la 5 se agruparon en un mismo commit de ci.yml. La rúbrica exige un defecto por commit; este punto necesita regularizarse antes de la calificación.
-
 ### Defecto 1
 - Job y etapa: smoke, post-deploy.
 - Problema que causa en el pipeline: smoke dependía de build-push, por lo que podía ejecutarse antes de finalizar deploy y validar una versión anterior.
