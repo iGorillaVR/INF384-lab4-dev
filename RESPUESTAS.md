@@ -41,12 +41,11 @@ Presupuesto: 8 min  Métrica DORA: time to restore
 - Evidencia (dato observado, con link al run o fragmento de la salida local): en https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40958204990 el job `e2e` terminó correctamente sin el paso `Navegador`. **Pendiente:** registrar minutos antes/después del cambio para cuantificar el tiempo recuperado.
 
 ## Parte 2 · Implementación
-> Estado: pendiente. El último run observado de main contiene las correcciones, pero load seguía ejecutándose al consultarlo. Un run verde solo se registrará cuando estén los cinco commits individuales requeridos y termine correctamente.
-- Link al run en verde en main:
-- Link al pull request:
-- Defecto de la aplicación introducido (archivo y descripción):
-- Job que debería detenerlo:
-- Link al run fallido:
+- Link al run en verde en main: https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40958204990
+- Link al pull request: https://github.com/iGorillaVR/INF384-lab4-dev/pull/1
+- Defecto de la aplicación introducido (archivo y descripción): Se modificó src/wallet.js, específicamente la función transferir(), cambiando la condición cuentaOrigen.saldo < centimos por cuentaOrigen.saldo < 0. Esto provoca que la aplicación no valide correctamente si el usuario tiene saldo suficiente para realizar una transferencia, permitiendo intentar operaciones que deberían rechazarse.
+- Job que debería detenerlo: unit (etapa pre-build). La prueba unitaria transferir con saldo insuficiente es 400 verifica que una transferencia superior al saldo disponible sea rechazada con HTTP 400.
+- Link al run fallido: https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40960807309
 
 ## Parte 3 · Decisión bajo restricción
 > Presupuesto asignado: **8 minutos**. Métrica DORA asignada: **time to restore**. Registrar datos de un run en verde de la Parte 2. La suma de duraciones de todos los jobs, no la duración de reloj, es la medida de la rúbrica.
