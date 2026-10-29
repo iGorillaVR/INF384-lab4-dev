@@ -82,6 +82,7 @@ Se propone un SLA de latencia p95 inferior o igual a 200 ms, medido mensualmente
 
 Cambios para cumplir el presupuesto:
 | Cambio | Job | Minutos recuperados |
+|---|---|---|
 |Reducir la prueba k6 de 12 minutos a 4 minutos y 30 segundos, manteniendo 30 usuarios virtuales y un mínimo de 4 minutos de carga constante.|load|7min 27s|
 |Ajustar SLO_P95 de 500 ms a 100 ms.|load| 0s |
 
