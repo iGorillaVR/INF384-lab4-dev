@@ -53,31 +53,32 @@ Link al run medido:
 
 | Job | Duración (min:seg) |
 |---|---|
-| unit | |
-| integration | |
-| sast | |
-| sca | |
-| build-push | |
-| deploy | |
-| smoke | |
-| e2e | |
-| load | |
-| **Total** | |
+| unit | 11s |
+| integration | 11s |
+| sast | 20s |
+| sca | 23s |
+| build-push | 37s |
+| deploy | 18s |
+| smoke | 10s |
+| e2e | 17s |
+| load | 12m 9s |
+| **Total** | 14m 36s |
 
 Resultado de load en ese run:
 | Métrica | Valor |
 |---|---|
-| p90 | |
-| p95 | |
-| Máximo | |
-| Tasa de error | |
-| Requests por segundo | |
+| p90 | 17,98 ms |
+| p95 | 20,38 ms |
+| Máximo | 112,01 ms |
+| Tasa de error | 0% |
+| Requests por segundo | 53,51 |
 
-Conclusión sobre el comportamiento bajo carga:
+Conclusión sobre el comportamiento bajo carga: En la ejecución analizada, Monedero Andino presentó una latencia p95 de 20,38 ms y una tasa de errores HTTP reportada de 0 %, procesando aproximadamente 53,51 solicitudes por segundo. Esto evidencia un buen rendimiento bajo la carga simulada de 30 usuarios virtuales. Sin embargo, la configuración utilizada consideraba esperadas las respuestas HTTP 400, por lo que el resultado no garantiza que todas las transferencias hayan sido efectivamente aceptadas.
 
-SLO propuesto (percentil, valor, ventana) y justificación:
+SLO propuesto (percentil, valor, ventana) y justificación: Se propone un SLO de latencia p95 inferior a 100 ms durante cada ejecución de la prueba de carga de k6, con 30 usuarios virtuales y una etapa de carga constante de al menos 4 minutos. Este umbral ofrece margen frente a la latencia p95 observada de 20,38 ms y contempla variaciones normales entre ejecuciones.
 
 SLA propuesto y diferencia con el SLO:
+Se propone un SLA de latencia p95 inferior o igual a 200 ms, medido mensualmente para los clientes del servicio. El SLA es un compromiso externo con los clientes, mientras que el SLO es un objetivo técnico interno más exigente. Por esta razón, el SLA establece un umbral de latencia mayor, dejando margen operativo antes de incumplir el compromiso de servicio.
 
 Cambios para cumplir el presupuesto:
 | Cambio | Job | Minutos recuperados |
