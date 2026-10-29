@@ -51,7 +51,7 @@ function transferir(store, { origen, destino, monto } = {}) {
     throw new ErrorNegocio(400, 'usuario inexistente');
   }
   const centimos = aCentimos(monto);
-  if (cuentaOrigen.saldo < centimos) {
+  if (cuentaOrigen.saldo < 0) {
     throw new ErrorNegocio(400, 'saldo insuficiente');
   }
   const id = store.transferir(origen, destino, centimos);
