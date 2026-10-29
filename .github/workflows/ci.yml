@@ -17,19 +17,15 @@ env:
   SLO_P95: 500
 
 jobs:
-
   unit:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
-
       - run: npm ci
-
       - run: npm run test:unit
 
   integration:
@@ -38,24 +34,19 @@ jobs:
       DB_PATH: /tmp/wallet.db
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
-
       - run: npm ci
-
       - run: npm run test:integration
 
   sast:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-
       - name: Instalar semgrep
         run: pipx install semgrep==1.182.1
-
       - name: Semgrep
         env:
           SEMGREP_SEND_METRICS: 'off'
@@ -71,7 +62,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-
       - name: Trivy
         run: |
           docker run --rm \
@@ -91,14 +81,12 @@ jobs:
       image: ${{ steps.digest.outputs.image }}
     steps:
       - uses: actions/checkout@v7
-
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Repositorio ECR
         run: |
           aws ecr describe-repositories --repository-names "$APP" > /dev/null 2>&1 \
@@ -112,10 +100,8 @@ jobs:
               "Action": ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"]
             }]
           }' > /dev/null
-
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
-
       - name: Build
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
@@ -126,7 +112,6 @@ jobs:
             --build-arg APP_COMMIT="$GITHUB_SHA" \
             --tag "$REGISTRY/$APP:$GITHUB_SHA" \
             .
-
       - name: Escaneo de la imagen (informativo)
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
@@ -150,12 +135,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           altos="$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' trivy-imagen.json)"
           echo "::warning title=Escaneo de la imagen::${altos} hallazgos HIGH o CRITICAL. Informativo, no detiene."
-
       - name: Push
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: docker push "$REGISTRY/$APP:$GITHUB_SHA"
-
       - id: digest
         name: Digest
         env:
@@ -182,7 +165,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Lambda
         env:
           IMAGE: ${{ needs.build-push.outputs.image }}
@@ -204,7 +186,6 @@ jobs:
             aws lambda wait function-active-v2 --function-name "$APP"
           fi
           aws lambda wait function-updated-v2 --function-name "$APP"
-
       - name: Function URL
         run: |
           if ! aws lambda get-function-url-config --function-name "$APP" > /dev/null 2>&1; then
@@ -230,18 +211,16 @@ jobs:
             --output text
 
   smoke:
-    needs: build-push
+    needs: deploy
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: URL
         id: url
         run: |
@@ -255,10 +234,10 @@ jobs:
             sleep 10
           done
           echo "url=$url" >> "$GITHUB_OUTPUT"
-
       - name: Smoke
         env:
           BASE_URL: ${{ steps.url.outputs.url }}
+          EXPECTED_COMMIT: ${{ github.sha }}
         run: test/smoke/smoke.sh
 
   e2e:
@@ -266,24 +245,17 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
-
       - run: npm ci
-
-      - name: Navegador
-        run: npx playwright install --with-deps chromium
-
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: URL
         id: url
         run: |
@@ -297,7 +269,6 @@ jobs:
             sleep 10
           done
           echo "url=$url" >> "$GITHUB_OUTPUT"
-
       - name: Playwright
         env:
           BASE_URL: ${{ steps.url.outputs.url }}
@@ -308,16 +279,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-
       - uses: grafana/setup-k6-action@v1
-
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: URL
         id: url
         run: |
@@ -331,8 +299,8 @@ jobs:
             sleep 10
           done
           echo "url=$url" >> "$GITHUB_OUTPUT"
-
       - name: k6
         env:
           BASE_URL: ${{ steps.url.outputs.url }}
+          SLO_P95: ${{ env.SLO_P95 }}
         run: k6 run test/load/transferir.js
