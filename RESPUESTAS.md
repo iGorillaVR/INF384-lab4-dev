@@ -6,39 +6,39 @@ Presupuesto: 8 min  Métrica DORA: time to restore
 > Nota de trazabilidad: las correcciones 1, 2 y una parte de la 5 se agruparon en un mismo commit de ci.yml. La rúbrica exige un defecto por commit; este punto necesita regularizarse antes de la calificación.
 
 ### Defecto 1
-- Job y etapa: smoke, post-deploy (dependencia inicial incorrecta con build-push).
-- Problema que causa en el pipeline: smoke comenzaba en paralelo con deploy porque tenía `needs: build-push`. Podía probar la versión anterior de Lambda, dar un falso positivo o fallar por una actualización todavía en curso.
+- Job y etapa: smoke, post-deploy.
+- Problema que causa en el pipeline: smoke dependía de build-push, por lo que podía ejecutarse antes de finalizar deploy y validar una versión anterior.
 - Link al commit: https://github.com/iGorillaVR/INF384-lab4-dev/commit/ccf01c3be74cfa4ac21065e8885234c18289ef83
 - Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): mover de etapa y ajustar configuración; `smoke.needs: deploy`.
-- Evidencia (dato observado, con link al run o fragmento de la salida local): en el run inicial https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40914966792 los jobs smoke y deploy empezaron ambos alrededor de las 16:48:33 UTC; por tanto no existía una dependencia entre ellos. En el run corregido https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40958204990, smoke se ejecuta después de deploy.
+- Evidencia (dato observado, con link al run o fragmento de la salida local): En el run inicial, ambos jobs comenzaron alrededor de las 16:48:33 UTC. En el run corregido, smoke esperó a deploy.
 
 ### Defecto 2
 - Job y etapa: smoke, post-deploy.
-- Problema que causa en el pipeline: smoke.sh tiene la validación opcional EXPECTED_COMMIT, pero ci.yml no la proporcionaba. El test podía aprobar aunque Lambda respondiera con otro commit.
+- Problema que causa en el pipeline: No se verificaba que Lambda ejecutara el commit correcto, permitiendo validar versiones anteriores.
 - Link al commit: https://github.com/iGorillaVR/INF384-lab4-dev/commit/ccf01c3be74cfa4ac21065e8885234c18289ef83
 - Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): ajustar configuración; definir `EXPECTED_COMMIT: ${{ github.sha }}` en el paso Smoke.
 - Evidencia (dato observado, con link al run o fragmento de la salida local): en el run https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40958204990, log de smoke: `salud: {"ok":true,"version":"1.0.0","commit":"be061e23aa121664a48823ab435212c6a26d12d4"}` y `commit: be061e23aa121664a48823ab435212c6a26d12d4`; se verificó el SHA esperado. En el run previo https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40914966792 no aparecía la línea `commit:`.
 
 ### Defecto 3
 - Job y etapa: integration, pre-build.
-- Problema que causa en el pipeline: varias pruebas asumían el saldo o el historial modificado por pruebas anteriores, por ejemplo saldo de ana = 900 después de la transferencia. El resultado dependía del orden y del estado compartido.
+- Problema que causa en el pipeline: Las pruebas dependían del estado generado por pruebas anteriores, haciendo que los resultados dependieran del orden de ejecución.
 - Link al commit: https://github.com/iGorillaVR/INF384-lab4-dev/commit/56aea1fc52c7d86057ff29ac1a7b3892ed633633
-- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): modificar tests; agrupar comprobaciones dependientes en escenarios y asignar una ruta SQLite temporal por escenario.
-- Evidencia (dato observado, con link al run o fragmento de la salida local): https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40958204990: job `integration` finalizó en verde tras el cambio; el diff del commit muestra que el estado inicial ya no se presupone entre tests. La ejecución exitosa evidencia la corrección, aunque no demuestra por sí sola un fallo previo reproducido.
+- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): Modificar tests, agrupando verificaciones relacionadas y utilizando bases SQLite temporales independientes.
+- Evidencia (dato observado, con link al run o fragmento de la salida local): El run corregido muestra integration en verde. El commit permite comprobar la separación de escenarios. No se reprodujo un fallo por cambio de orden.
 
 ### Defecto 4
 - Job y etapa: load, post-deploy.
-- Problema que causa en el pipeline: k6 declaraba exitosos los HTTP 400 y comprobaba `200 || 400`, de modo que rechazos de transferencias podían contarse como operaciones válidas y ocultarse en la tasa de errores.
+- Problema que causa en el pipeline: k6 consideraba exitosas las respuestas HTTP 400, ocultando transferencias rechazadas en sus métricas.
 - Link al commit: https://github.com/iGorillaVR/INF384-lab4-dev/commit/11189a24e9fcc79e73c9dddd92249792d6dd928e
-- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): modificar tests; `expectedStatuses(200)` y comprobación de HTTP 200 para transferencia aceptada.
-- Evidencia (dato observado, con link al run o fragmento de la salida local): en el run inicial https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40914966792, k6 informó `checks_succeeded: 100.00% 36448 out of 36448` y `http_req_failed: 0.00%`, con reglas que aceptaban HTTP 400. **Pendiente:** contrastar con los logs del run corregido para confirmar el efecto y evaluar rechazos legítimos por saldo insuficiente.
+- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): Modificar tests para aceptar únicamente HTTP 200 como transferencia exitosa.
+- Evidencia (dato observado, con link al run o fragmento de la salida local):  En el run inicial, k6 reportó 36 448 checks exitosos y 0 % de errores bajo la configuración que aceptaba HTTP 400. En el run corregido, registró 13 568 checks exitosos y 0 % de errores con la validación más estricta.
 
 ### Defecto 5
 - Job y etapa: e2e, post-deploy.
-- Problema que causa en el pipeline: una batería de pruebas de API basada en Playwright usaba `page` y requería instalar Chromium, con costo innecesario para la mayoría de las validaciones HTTP.
+- Problema que causa en el pipeline: Las pruebas de API requerían instalar Chromium innecesariamente, aumentando el tiempo del pipeline.
 - Link al commit: https://github.com/iGorillaVR/INF384-lab4-dev/commit/be061e23aa121664a48823ab435212c6a26d12d4 (adaptación de los tests); https://github.com/iGorillaVR/INF384-lab4-dev/commit/ccf01c3be74cfa4ac21065e8885234c18289ef83 (eliminación del paso Navegador).
-- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): eliminar y modificar tests; usar `request` y eliminar la instalación de Chromium.
-- Evidencia (dato observado, con link al run o fragmento de la salida local): en https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40958204990 el job `e2e` terminó correctamente sin el paso `Navegador`. **Pendiente:** registrar minutos antes/después del cambio para cuantificar el tiempo recuperado.
+- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): Eliminar el paso de instalación de Chromium y modificar los tests para utilizar request de Playwright.
+- Evidencia (dato observado, con link al run o fragmento de la salida local): en https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40958204990 el job `e2e` terminó correctamente sin el paso `Navegador`. 
 
 ## Parte 2 · Implementación
 - Link al run en verde en main: https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40958204990
@@ -82,14 +82,18 @@ Se propone un SLA de latencia p95 inferior o igual a 200 ms, medido mensualmente
 
 Cambios para cumplir el presupuesto:
 | Cambio | Job | Minutos recuperados |
-|---|---|---|
+|Reducir la prueba k6 de 12 minutos a 4 minutos y 30 segundos, manteniendo 30 usuarios virtuales y un mínimo de 4 minutos de carga constante.|load|7min 27s|
+|Ajustar SLO_P95 de 500 ms a 100 ms.|load| 0s |
 
-Total resultante: [ ] min
-Link al run en main con los cambios:
+Total resultante: 7:24 min
+Link al run en main con los cambios: https://github.com/iGorillaVR/INF384-lab4-dev/actions/runs/40963133584
 
 Riesgo aceptado (defecto de la aplicación concreto y efecto en la métrica DORA asignada):
+Al reducir la duración de load, se acepta el riesgo de no detectar una posible fuga de memoria que degrade el rendimiento tras varios minutos de uso continuo. Este defecto podría llegar a producción y aumentar el Time to Restore, debido al tiempo adicional necesario para identificar el problema y restaurar el servicio.
 
 Decisión sobre sast (se queda / se mueve a otra etapa o evento / informativo) y razón:
+Se mantiene sast como obligatorio en pre-build, ya que consume únicamente 23 segundos (0,38 minutos) y permite detectar vulnerabilidades antes del despliegue. Eliminarlo o hacerlo informativo podría aumentar el riesgo de incidentes en producción y, por tanto, el Time to Restore. Como el presupuesto se cumplió optimizando load, no fue necesario modificar sast.
+
 
 ## Declaración de uso de IA
-Herramientas usadas y para qué: ChatGPT (OpenAI), para revisar el código y la configuración del pipeline, proponer correcciones, interpretar logs de GitHub Actions y redactar/documentar las respuestas. Las evidencias y enlaces incluidos corresponden a ejecuciones observadas en mi fork.
+Herramientas usadas y para qué: ChatGPT (OpenAI), para analizar el pipeline, identificar y corregir defectos, revisar los resultados de GitHub Actions y apoyar la redacción de las respuestas.
